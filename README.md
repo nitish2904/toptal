@@ -239,12 +239,71 @@ cd bookshop
 
 Output: `Tests run: 24, Failures: 0, Errors: 0, Skipped: 0 – BUILD SUCCESS`
 
-### 3. Access H2 Database Console
+### 3. Stop the Application
+
+Press `Ctrl+C` in the terminal where the app is running. If the process is in the background or the terminal was closed:
+
+```bash
+# Find and kill the process on port 8080
+lsof -ti:8080 | xargs kill -9
+```
+
+### 4. Access H2 Database Console
 
 Open http://localhost:8080/h2-console  
 - JDBC URL: `jdbc:h2:file:./data/bookshopdb`
 - User: `sa`  
 - Password: *(empty)*
+
+### 5. Fresh Start (reset database)
+
+```bash
+cd toptal/bookshop
+rm -rf data
+./mvnw spring-boot:run
+```
+
+---
+
+## 🔧 Troubleshooting
+
+### `Port 8080 was already in use`
+
+This means a previous instance of the app (or another process) is still running on port 8080.
+
+**Fix (macOS/Linux):**
+```bash
+# Step 1: Find what's using port 8080
+lsof -i :8080
+
+# Step 2: Kill it
+lsof -ti:8080 | xargs kill -9
+
+# Step 3: Start the app again
+cd toptal/bookshop
+./mvnw spring-boot:run
+```
+
+**Alternative:** Run on a different port:
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.arguments=--server.port=9090
+```
+
+### `exit code: 137`
+
+This is not an error — it means a previous Java process was forcefully killed (SIGKILL). Just run `./mvnw spring-boot:run` again.
+
+### Database locked error
+
+If you see `Database may be already in use`, it means another instance has the H2 file locked:
+```bash
+# Kill any running instance first
+lsof -ti:8080 | xargs kill -9
+
+# Optionally delete the database and start fresh
+rm -rf data
+./mvnw spring-boot:run
+```
 
 ---
 
