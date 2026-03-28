@@ -24,6 +24,7 @@ public class CartService {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
 
+    @Transactional(readOnly = true)
     public List<CartItemResponse> getCart(String email) {
         User user = getUser(email);
         return cartItemRepository.findByUser(user).stream()
@@ -123,6 +124,7 @@ public class CartService {
         return OrderResponse.from(order);
     }
 
+    @Transactional(readOnly = true)
     public List<OrderResponse> getOrders(String email) {
         User user = getUser(email);
         return orderRepository.findByUserOrderByCreatedAtDesc(user).stream()

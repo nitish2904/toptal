@@ -26,6 +26,7 @@ public class BookService {
     /**
      * List books in stock. Optionally filter by category IDs.
      */
+    @Transactional(readOnly = true)
     public Page<BookResponse> getBooks(List<Long> categoryIds, Pageable pageable) {
         Page<Book> books;
         if (categoryIds != null && !categoryIds.isEmpty()) {
@@ -36,6 +37,7 @@ public class BookService {
         return books.map(BookResponse::from);
     }
 
+    @Transactional(readOnly = true)
     public BookResponse getBookById(Long id) {
         Book book = bookRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
