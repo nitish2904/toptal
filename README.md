@@ -230,6 +230,8 @@ cd toptal/bookshop
 The app starts on **http://localhost:8080**.  
 A default admin user is auto-created: `admin@bookshop.com` / `admin123`
 
+**📌 Open in browser:** [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) — Interactive Swagger UI to test all APIs
+
 ### 2. Run Tests
 
 ```bash
@@ -266,6 +268,25 @@ rm -rf data
 ---
 
 ## 🔧 Troubleshooting
+
+### `403 Forbidden` when opening `http://localhost:8080/`
+
+This is expected — there's no endpoint at the root URL `/`. Use these instead:
+
+| URL | What |
+|---|---|
+| [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) | **Swagger UI** – Interactive API testing in browser |
+| [http://localhost:8080/api/books](http://localhost:8080/api/books) | Browse books (public, no auth needed) |
+| [http://localhost:8080/api/categories](http://localhost:8080/api/categories) | List categories (public) |
+| [http://localhost:8080/h2-console](http://localhost:8080/h2-console) | Database console |
+
+**To test authenticated endpoints (cart, admin, orders) from the browser:**
+1. Open [Swagger UI](http://localhost:8080/swagger-ui.html)
+2. Call `POST /api/auth/login` with `{"email":"admin@bookshop.com","password":"admin123"}`
+3. Copy the `token` from the response
+4. Click the **Authorize** 🔒 button at the top right
+5. Paste the token and click **Authorize**
+6. Now all endpoints will include the JWT token automatically
 
 ### `Port 8080 was already in use`
 
