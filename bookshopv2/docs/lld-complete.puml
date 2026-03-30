@@ -166,54 +166,65 @@ package "DTO Layer (com.toptal.bookshopv2.dto)" #E8F5E9 {
 }
 
 ' ============================================================
-' SECTION 3: STORAGE LAYER
+' SECTION 3: REPOSITORY LAYER
 ' ============================================================
 
-package "Storage Layer (com.toptal.bookshopv2.store)" #FFF3E0 {
+package "Repository Layer (com.toptal.bookshopv2.repository)" #FFF3E0 {
 
-  class DataStore <<@Component>> {
-    - userIdGen : AtomicLong
-    - categoryIdGen : AtomicLong
-    - bookIdGen : AtomicLong
-    - cartItemIdGen : AtomicLong
-    - orderIdGen : AtomicLong
-    - orderItemIdGen : AtomicLong
-    --
+  class UserRepository <<@Repository>> {
+    - idGenerator : AtomicLong
     - users : ConcurrentHashMap<Long, User>
+    --
+    + save(User) : User
+    + findByEmail(String) : Optional<User>
+    + existsByEmail(String) : boolean
+  }
+
+  class CategoryRepository <<@Repository>> {
+    - idGenerator : AtomicLong
     - categories : ConcurrentHashMap<Long, Category>
+    --
+    + save(Category) : Category
+    + findById(Long) : Optional<Category>
+    + findAll() : List<Category>
+    + existsByName(String) : boolean
+    + existsByNameAndNotId(String, Long) : boolean
+    + deleteById(Long) : void
+  }
+
+  class BookRepository <<@Repository>> {
+    - idGenerator : AtomicLong
     - books : ConcurrentHashMap<Long, Book>
-    - cartItems : ConcurrentHashMap<Long, CartItem>
-    - orders : ConcurrentHashMap<Long, Order>
-    ==  User Operations ==
-    + saveUser(User) : User
-    + findUserByEmail(String) : Optional<User>
-    + existsUserByEmail(String) : boolean
-    == Category Operations ==
-    + saveCategory(Category) : Category
-    + findCategoryById(Long) : Optional<Category>
-    + findAllCategories() : List<Category>
-    + existsCategoryByName(String) : boolean
-    + existsCategoryByNameAndNotId(String, Long) : boolean
-    + deleteCategory(Long) : void
-    == Book Operations ==
-    + saveBook(Book) : Book
-    + findBookById(Long) : Optional<Book>
-    + findInStockBooks() : List<Book>
-    + findInStockBooksByCategoryIds(List<Long>) : List<Book>
-    + deleteBook(Long) : void
-    + existsBookByCategoryId(Long) : boolean
-    == Cart Operations ==
-    + saveCartItem(CartItem) : CartItem
-    + findCartItemsByUserId(Long) : List<CartItem>
-    + existsCartItemByUserIdAndBookId(Long, Long) : boolean
-    + findCartItemByUserIdAndBookId(Long, Long) : Optional<CartItem>
-    + deleteCartItem(Long) : void
-    + deleteCartItemsByUserId(Long) : void
-    + deleteExpiredCartItems(long) : void
-    == Order Operations ==
-    + saveOrder(Order) : Order
-    + findOrdersByUserId(Long) : List<Order>
+    --
+    + save(Book) : Book
+    + findById(Long) : Optional<Book>
+    + findInStock() : List<Book>
+    + findInStockByCategoryIds(List<Long>) : List<Book>
+    + deleteById(Long) : void
+    + existsByCategoryId(Long) : boolean
     + getBookMap() : Map<Long, Book>
+  }
+
+  class CartItemRepository <<@Repository>> {
+    - idGenerator : AtomicLong
+    - cartItems : ConcurrentHashMap<Long, CartItem>
+    --
+    + save(CartItem) : CartItem
+    + findByUserId(Long) : List<CartItem>
+    + existsByUserIdAndBookId(Long, Long) : boolean
+    + findByUserIdAndBookId(Long, Long) : Optional<CartItem>
+    + deleteById(Long) : void
+    + deleteByUserId(Long) : void
+    + deleteExpiredItems(long) : void
+  }
+
+  class OrderRepository <<@Repository>> {
+    - orderIdGenerator : AtomicLong
+    - orderItemIdGenerator : AtomicLong
+    - orders : ConcurrentHashMap<Long, Order>
+    --
+    + save(Order) : Order
+    + findByUserId(Long) : List<Order>
     --
     Thread-safe: ConcurrentHashMap + AtomicLong
   }
@@ -226,7 +237,7 @@ package "Storage Layer (com.toptal.bookshopv2.store)" #FFF3E0 {
 package "Service Layer (com.toptal.bookshopv2.service)" #E3F2FD {
 
   class AuthService <<@Service>> {
-    - dataStore : DataStore
+    - userRepository : UserRepository
     - passwordEncoder : PasswordEncoder
     - jwtService : JwtService
     --
@@ -238,7 +249,8 @@ package "Service Layer (com.toptal.bookshopv2.service)" #E3F2FD {
   }
 
   class BookService <<@Service>> {
-    - dataStore : DataStore
+    - bookRepository : BookRepository
+    - categoryRepository : CategoryRepository
     --
     + getBooks(categoryIds, sortBy, sortDir, page, size) : List<BookResponse>
     + countBooks(categoryIds) : long
@@ -253,7 +265,8 @@ package "Service Layer (com.toptal.bookshopv2.service)" #E3F2FD {
   }
 
   class CategoryService <<@Service>> {
-    - dataStore : DataStore
+    - categoryRepository : CategoryRepository
+    - bookRepository : BookRepository
     --
     + getAllCategories() : List<CategoryResponse>
     + getCategoryById(Long) : CategoryResponse
@@ -265,7 +278,10 @@ package "Service Layer (com.toptal.bookshopv2.service)" #E3F2FD {
   }
 
   class CartService <<@Service>> {
-    - dataStore : DataStore
+    - userRepository : UserRepository
+    - bookRepository : BookRepository
+    - cartItemRepository : CartItemRepository
+    - orderRepository : OrderRepository
     --
     + getCart(String email) : List<CartItemResponse>
     + addToCart(String email, Long bookId) : CartItemResponse
@@ -279,7 +295,7 @@ package "Service Layer (com.toptal.bookshopv2.service)" #E3F2FD {
   }
 
   class CartExpiryScheduler <<@Service>> {
-    - dataStore : DataStore
+    - cartItemRepository : CartItemRepository
     - expiryMinutes : long {from config}
     --
     + {scheduled} cleanupExpiredItems() : void
@@ -289,11 +305,16 @@ package "Service Layer (com.toptal.bookshopv2.service)" #E3F2FD {
     (configurable via app.cart.expiry-minutes)
   }
 
-  AuthService --> DataStore
-  BookService --> DataStore
-  CategoryService --> DataStore
-  CartService --> DataStore
-  CartExpiryScheduler --> DataStore
+  AuthService --> UserRepository
+  BookService --> BookRepository
+  BookService --> CategoryRepository
+  CategoryService --> CategoryRepository
+  CategoryService --> BookRepository
+  CartService --> UserRepository
+  CartService --> BookRepository
+  CartService --> CartItemRepository
+  CartService --> OrderRepository
+  CartExpiryScheduler --> CartItemRepository
 }
 
 ' ============================================================
@@ -315,7 +336,7 @@ package "Security Layer (com.toptal.bookshopv2.security)" #FCE4EC {
   }
 
   class CustomUserDetailsService <<@Service>> {
-    - dataStore : DataStore
+    - userRepository : UserRepository
     --
     + loadUserByUsername(String email) : UserDetails
     --
@@ -335,7 +356,7 @@ package "Security Layer (com.toptal.bookshopv2.security)" #FCE4EC {
 
   JwtAuthenticationFilter --> JwtService
   JwtAuthenticationFilter --> CustomUserDetailsService
-  CustomUserDetailsService --> DataStore
+  CustomUserDetailsService --> UserRepository
 }
 
 ' ============================================================
@@ -465,10 +486,10 @@ package "Exception Handling" #FFEBEE {
 
 note as N1
   <b>Request Flow:</b>
-  Client → JwtAuthenticationFilter → Controller → Service → DataStore
+  Client → JwtAuthenticationFilter → Controller → Service → Repository
 
   <b>Key Business Rules:</b>
-  1. Registration always creates USER role (admin via DataStore only)
+  1. Registration always creates USER role (admin via DataInitializer only)
   2. Book stock set at creation, immutable via update API
   3. Sold-out books (stock=0) hidden from listings
   4. One copy per book per user in cart

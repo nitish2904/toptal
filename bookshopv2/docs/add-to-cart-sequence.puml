@@ -3,12 +3,15 @@
 actor User
 participant "CartController" as CC
 participant "CartService" as CS
-participant "DataStore" as DS
+participant "UserRepository" as UR
+participant "BookRepository" as BR
+participant "CartItemRepository" as CIR
 
 User -> CC : POST /api/cart/items/{bookId}
-CC -> CS : addToCart(userId, bookId)
+CC -> CS : addToCart(email, bookId)
+CS -> UR : findByEmail(email)
 
-CS -> DS : findBookById(bookId)
+CS -> BR : findById(bookId)
 
 alt Book not found
   CS --> CC : 404 "Book not found"
@@ -20,15 +23,15 @@ alt Book stock <= 0
   CC --> User : 400 Error
 end
 
-CS -> DS : findCartItemsByUserId(userId)
+CS -> CIR : existsByUserIdAndBookId(userId, bookId)
 
 alt Book already in cart
   CS --> CC : 409 "Book is already in your cart"
   CC --> User : 409 Conflict
 end
 
-CS -> DS : saveCartItem(cartItem)
-DS --> CS : CartItem
+CS -> CIR : save(cartItem)
+CIR --> CS : CartItem
 CS --> CC : CartItemResponse
 CC --> User : 201 Created + CartItem
 

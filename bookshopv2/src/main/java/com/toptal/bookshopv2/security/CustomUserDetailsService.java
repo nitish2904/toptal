@@ -1,7 +1,7 @@
 package com.toptal.bookshopv2.security;
 
 import com.toptal.bookshopv2.model.User;
-import com.toptal.bookshopv2.store.DataStore;
+import com.toptal.bookshopv2.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.*;
@@ -11,10 +11,10 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
-    private final DataStore dataStore;
+    private final UserRepository userRepository;
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = dataStore.findUserByEmail(email)
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(), user.getPassword(),

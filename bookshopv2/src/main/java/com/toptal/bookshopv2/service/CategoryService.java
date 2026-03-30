@@ -4,7 +4,8 @@ import com.toptal.bookshopv2.dto.CategoryRequest;
 import com.toptal.bookshopv2.dto.CategoryResponse;
 import com.toptal.bookshopv2.exception.*;
 import com.toptal.bookshopv2.model.Category;
-import com.toptal.bookshopv2.store.DataStore;
+import com.toptal.bookshopv2.repository.BookRepository;
+import com.toptal.bookshopv2.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.util.List;
@@ -12,33 +13,34 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class CategoryService {
-    private final DataStore dataStore;
+    private final CategoryRepository categoryRepository;
+    private final BookRepository bookRepository;
 
     public List<CategoryResponse> getAllCategories() {
-        return dataStore.findAllCategories().stream().map(CategoryResponse::from).toList();
+        return categoryRepository.findAll().stream().map(CategoryResponse::from).toList();
     }
     public CategoryResponse getCategoryById(Long id) {
-        return CategoryResponse.from(dataStore.findCategoryById(id)
+        return CategoryResponse.from(categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id)));
     }
     public CategoryResponse createCategory(CategoryRequest req) {
-        if (dataStore.existsCategoryByName(req.getName()))
+        if (categoryRepository.existsByName(req.getName()))
             throw new ConflictException("Category already exists: " + req.getName());
-        return CategoryResponse.from(dataStore.saveCategory(Category.builder().name(req.getName()).build()));
+        return CategoryResponse.from(categoryRepository.save(Category.builder().name(req.getName()).build()));
     }
     public CategoryResponse updateCategory(Long id, CategoryRequest req) {
-        Category c = dataStore.findCategoryById(id)
+        Category c = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id));
-        if (dataStore.existsCategoryByNameAndNotId(req.getName(), id))
+        if (categoryRepository.existsByNameAndNotId(req.getName(), id))
             throw new ConflictException("Category already exists: " + req.getName());
         c.setName(req.getName());
-        return CategoryResponse.from(dataStore.saveCategory(c));
+        return CategoryResponse.from(categoryRepository.save(c));
     }
     public void deleteCategory(Long id) {
-        if (dataStore.findCategoryById(id).isEmpty())
+        if (categoryRepository.findById(id).isEmpty())
             throw new ResourceNotFoundException("Category not found with id: " + id);
-        if (dataStore.existsBookByCategoryId(id))
+        if (bookRepository.existsByCategoryId(id))
             throw new BadRequestException("Cannot delete category that has books. Remove the books first.");
-        dataStore.deleteCategory(id);
+        categoryRepository.deleteById(id);
     }
 }

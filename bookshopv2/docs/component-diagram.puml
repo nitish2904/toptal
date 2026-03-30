@@ -30,8 +30,12 @@ package "Spring Boot Application" {
     [CartExpiryScheduler] as CES
   }
 
-  package "Storage Layer" {
-    [DataStore\n(ConcurrentHashMap)] as DS
+  package "Repository Layer\n(ConcurrentHashMap-backed)" {
+    [UserRepository] as UR
+    [CategoryRepository] as CR
+    [BookRepository] as BR
+    [CartItemRepository] as CIR
+    [OrderRepository] as OR
   }
 }
 
@@ -53,11 +57,16 @@ ADC --> CS
 CTC --> CTS
 OC --> CTS
 
-AS --> DS
-BS --> DS
-CS --> DS
-CTS --> DS
-CES --> DS : Every 10 min
-CUDS --> DS
+AS --> UR
+BS --> BR
+BS --> CR
+CS --> CR
+CS --> BR
+CTS --> UR
+CTS --> BR
+CTS --> CIR
+CTS --> OR
+CES --> CIR : Every 10 min
+CUDS --> UR
 
 @enduml

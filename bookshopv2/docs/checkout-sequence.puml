@@ -3,15 +3,19 @@
 actor User
 participant "CartController" as CC
 participant "CartService" as CS
-participant "DataStore" as DS
+participant "UserRepository" as UR
+participant "CartItemRepository" as CIR
+participant "BookRepository" as BR
+participant "OrderRepository" as OR
 
 User -> CC : POST /api/cart/checkout
-CC -> CS : checkout(userId)
+CC -> CS : checkout(email)
 
 note over CS : synchronized block begins
 
-CS -> DS : findCartItemsByUserId(userId)
-DS --> CS : List<CartItem>
+CS -> UR : findByEmail(email)
+CS -> CIR : findByUserId(userId)
+CIR --> CS : List<CartItem>
 
 alt Cart is empty
   CS --> CC : 400 Bad Request "Cart is empty"
@@ -19,8 +23,8 @@ alt Cart is empty
 end
 
 loop For each CartItem
-  CS -> DS : findBookById(bookId)
-  DS --> CS : Book
+  CS -> BR : findById(bookId)
+  BR --> CS : Book
 
   alt Book stock <= 0
     CS --> CC : 400 "Book no longer in stock"
@@ -28,15 +32,15 @@ loop For each CartItem
   end
 
   CS -> CS : Decrement book.stock
-  CS -> DS : saveBook(book)
+  CS -> BR : save(book)
 end
 
-CS -> DS : saveOrder(order)
-CS -> DS : deleteCartItems(userId)
+CS -> OR : save(order)
+CS -> CIR : deleteByUserId(userId)
 
 note over CS : synchronized block ends
 
-DS --> CS : Order
+OR --> CS : Order
 CS --> CC : OrderResponse
 CC --> User : 200 OK + Order Details
 
