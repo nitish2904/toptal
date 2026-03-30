@@ -65,6 +65,13 @@ On startup, a default admin user is created:
 
 ## UML Diagrams
 
+> **Complete LLD:** See [`docs/lld-complete.puml`](docs/lld-complete.puml) for the full Low-Level Design in a single PlantUML file covering all layers (Model, DTO, DataStore, Service, Security, Controller, Config, Exceptions).
+>
+> **Individual diagrams** are also available as separate `.puml` files in the [`docs/`](docs/) folder: class-diagram, component-diagram, checkout-sequence, add-to-cart-sequence, auth-sequence.
+>
+> To render: use [PlantUML Online](https://www.plantuml.com/plantuml/uml/), IntelliJ PlantUML plugin, or VS Code PlantUML extension.
+
+
 ### Domain Model (Class Diagram)
 
 ```mermaid

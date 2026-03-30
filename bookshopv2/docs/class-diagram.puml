@@ -1,0 +1,62 @@
+@startuml Domain Model - Class Diagram
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+enum Role {
+  USER
+  ADMIN
+}
+
+class User {
+  - id : Long
+  - email : String
+  - password : String
+  - role : Role
+}
+
+class Category {
+  - id : Long
+  - name : String
+}
+
+class Book {
+  - id : Long
+  - title : String
+  - author : String
+  - yearPublished : Integer
+  - price : BigDecimal
+  - stock : Integer
+  - categoryId : Long
+}
+
+class CartItem {
+  - id : Long
+  - userId : Long
+  - bookId : Long
+  - addedAt : LocalDateTime
+}
+
+class Order {
+  - id : Long
+  - userId : Long
+  - totalPrice : BigDecimal
+  - createdAt : LocalDateTime
+  - items : List<OrderItem>
+}
+
+class OrderItem {
+  - bookId : Long
+  - bookTitle : String
+  - bookAuthor : String
+  - priceAtPurchase : BigDecimal
+}
+
+User --> Role : has
+Book --> Category : belongs to
+CartItem --> User : owned by
+CartItem --> Book : references
+Order --> User : placed by
+Order *-- OrderItem : contains
+OrderItem --> Book : references
+
+@enduml

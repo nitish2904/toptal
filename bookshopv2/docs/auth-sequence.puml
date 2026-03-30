@@ -1,0 +1,44 @@
+@startuml Authentication Flow
+
+actor User
+participant "AuthController" as AC
+participant "AuthService" as AS
+participant "JwtService" as JS
+participant "DataStore" as DS
+
+== Registration Flow ==
+
+User -> AC : POST /api/auth/register {email, password}
+AC -> AS : register(request)
+AS -> DS : findUserByEmail(email)
+
+alt Email already exists
+  AS --> AC : 409 "Email already registered"
+  AC --> User : 409 Conflict
+end
+
+AS -> AS : BCrypt.encode(password)
+AS -> DS : saveUser(user with Role.USER)
+AS -> JS : generateToken(email)
+JS --> AS : JWT Token
+AS --> AC : AuthResponse
+AC --> User : 200 {token, email, role: "USER"}
+
+== Login Flow ==
+
+User -> AC : POST /api/auth/login {email, password}
+AC -> AS : login(request)
+AS -> DS : findUserByEmail(email)
+AS -> AS : BCrypt.matches(password, hash)
+
+alt Invalid credentials
+  AS --> AC : 401 Unauthorized
+  AC --> User : 401 Error
+end
+
+AS -> JS : generateToken(email)
+JS --> AS : JWT Token
+AS --> AC : AuthResponse
+AC --> User : 200 {token, email, role}
+
+@enduml

@@ -1,0 +1,35 @@
+@startuml Add to Cart Sequence Diagram
+
+actor User
+participant "CartController" as CC
+participant "CartService" as CS
+participant "DataStore" as DS
+
+User -> CC : POST /api/cart/items/{bookId}
+CC -> CS : addToCart(userId, bookId)
+
+CS -> DS : findBookById(bookId)
+
+alt Book not found
+  CS --> CC : 404 "Book not found"
+  CC --> User : 404 Error
+end
+
+alt Book stock <= 0
+  CS --> CC : 400 "Book is out of stock"
+  CC --> User : 400 Error
+end
+
+CS -> DS : findCartItemsByUserId(userId)
+
+alt Book already in cart
+  CS --> CC : 409 "Book is already in your cart"
+  CC --> User : 409 Conflict
+end
+
+CS -> DS : saveCartItem(cartItem)
+DS --> CS : CartItem
+CS --> CC : CartItemResponse
+CC --> User : 201 Created + CartItem
+
+@enduml

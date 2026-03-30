@@ -1,0 +1,63 @@
+@startuml Architecture - Component Diagram
+skinparam componentStyle rectangle
+
+package "Client Layer" {
+  [REST Client / Browser] as CLIENT
+}
+
+package "Spring Boot Application" {
+  package "Controller Layer" {
+    [AuthController] as AC
+    [BookController] as BC
+    [CategoryController] as CC
+    [AdminController] as ADC
+    [CartController] as CTC
+    [OrderController] as OC
+  }
+
+  package "Security Layer" {
+    [JwtAuthenticationFilter] as SF
+    [JwtService] as JS
+    [SecurityConfig] as SC
+    [CustomUserDetailsService] as CUDS
+  }
+
+  package "Service Layer" {
+    [AuthService] as AS
+    [BookService] as BS
+    [CategoryService] as CS
+    [CartService] as CTS
+    [CartExpiryScheduler] as CES
+  }
+
+  package "Storage Layer" {
+    [DataStore\n(ConcurrentHashMap)] as DS
+  }
+}
+
+CLIENT --> SF : HTTP Requests
+SF --> JS : Validate JWT
+SF --> CUDS : Load User
+SF --> AC : Authorized
+SF --> BC
+SF --> CC
+SF --> ADC
+SF --> CTC
+SF --> OC
+
+AC --> AS
+BC --> BS
+CC --> CS
+ADC --> BS
+ADC --> CS
+CTC --> CTS
+OC --> CTS
+
+AS --> DS
+BS --> DS
+CS --> DS
+CTS --> DS
+CES --> DS : Every 10 min
+CUDS --> DS
+
+@enduml

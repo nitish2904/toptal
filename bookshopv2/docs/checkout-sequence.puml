@@ -1,0 +1,43 @@
+@startuml Checkout Sequence Diagram
+
+actor User
+participant "CartController" as CC
+participant "CartService" as CS
+participant "DataStore" as DS
+
+User -> CC : POST /api/cart/checkout
+CC -> CS : checkout(userId)
+
+note over CS : synchronized block begins
+
+CS -> DS : findCartItemsByUserId(userId)
+DS --> CS : List<CartItem>
+
+alt Cart is empty
+  CS --> CC : 400 Bad Request "Cart is empty"
+  CC --> User : 400 Error Response
+end
+
+loop For each CartItem
+  CS -> DS : findBookById(bookId)
+  DS --> CS : Book
+
+  alt Book stock <= 0
+    CS --> CC : 400 "Book no longer in stock"
+    CC --> User : 400 Error Response
+  end
+
+  CS -> CS : Decrement book.stock
+  CS -> DS : saveBook(book)
+end
+
+CS -> DS : saveOrder(order)
+CS -> DS : deleteCartItems(userId)
+
+note over CS : synchronized block ends
+
+DS --> CS : Order
+CS --> CC : OrderResponse
+CC --> User : 200 OK + Order Details
+
+@enduml

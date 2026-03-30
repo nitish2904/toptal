@@ -1,0 +1,481 @@
+@startuml Bookshop API v2 - Complete Low-Level Design
+title Bookshop API v2 - Complete Low-Level Design\nIn-Memory HashMap Storage | Spring Boot 3.4 | Java 21
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam groupInheritance 2
+
+' ============================================================
+' SECTION 1: DOMAIN MODEL
+' ============================================================
+
+package "Model Layer (com.toptal.bookshopv2.model)" #FEFECE {
+
+  enum Role {
+    USER
+    ADMIN
+  }
+
+  class User {
+    - id : Long
+    - email : String
+    - password : String {BCrypt encoded}
+    - role : Role
+    --
+    @Builder @Data
+  }
+
+  class Category {
+    - id : Long
+    - name : String {unique}
+    --
+    @Builder @Data
+  }
+
+  class Book {
+    - id : Long
+    - title : String
+    - author : String
+    - yearPublished : Integer
+    - price : BigDecimal
+    - stock : Integer {immutable after creation}
+    - categoryId : Long
+    --
+    @Builder @Data
+    Note: stock can only be set at creation
+    and decremented by checkout
+  }
+
+  class CartItem {
+    - id : Long
+    - userId : Long
+    - bookId : Long
+    - addedAt : LocalDateTime {auto-set}
+    --
+    @Builder @Data
+    Note: expires after 30 minutes
+  }
+
+  class Order {
+    - id : Long
+    - userId : Long
+    - totalPrice : BigDecimal
+    - createdAt : LocalDateTime {auto-set}
+    - items : List<OrderItem>
+    --
+    @Builder @Data
+  }
+
+  class OrderItem {
+    - id : Long
+    - orderId : Long
+    - bookId : Long
+    - priceAtPurchase : BigDecimal
+    --
+    @Builder @Data
+    Note: snapshot of price at time of purchase
+  }
+
+  User --> Role
+  Book --> Category : categoryId
+  CartItem --> User : userId
+  CartItem --> Book : bookId
+  Order --> User : userId
+  Order *-- "1..*" OrderItem : items
+  OrderItem --> Book : bookId
+}
+
+' ============================================================
+' SECTION 2: DTO LAYER
+' ============================================================
+
+package "DTO Layer (com.toptal.bookshopv2.dto)" #E8F5E9 {
+
+  class AuthRequest {
+    + email : String {@NotBlank @Email}
+    + password : String {@NotBlank @Size(min=6)}
+  }
+
+  class AuthResponse {
+    + token : String
+    + email : String
+    + role : String
+  }
+
+  class CategoryRequest {
+    + name : String {@NotBlank}
+  }
+
+  class CategoryResponse {
+    + id : Long
+    + name : String
+    --
+    + {static} from(Category) : CategoryResponse
+  }
+
+  class BookRequest {
+    + title : String {@NotBlank}
+    + author : String {@NotBlank}
+    + yearPublished : Integer {@NotNull}
+    + price : BigDecimal {@NotNull @DecimalMin("0.01")}
+    + stock : Integer {@NotNull @Min(0)}
+    + categoryId : Long {@NotNull}
+  }
+
+  class BookUpdateRequest {
+    + title : String {@NotBlank}
+    + author : String {@NotBlank}
+    + yearPublished : Integer {@NotNull}
+    + price : BigDecimal {@NotNull @DecimalMin("0.01")}
+    + categoryId : Long {@NotNull}
+    --
+    Note: NO stock field - stock is immutable
+  }
+
+  class BookResponse {
+    + id : Long
+    + title : String
+    + author : String
+    + yearPublished : Integer
+    + price : BigDecimal
+    + stock : Integer
+    + category : CategoryResponse
+    --
+    + {static} from(Book, Category) : BookResponse
+  }
+
+  class CartItemResponse {
+    + id : Long
+    + bookId : Long
+    + bookTitle : String
+    + bookAuthor : String
+    + bookPrice : BigDecimal
+    + addedAt : LocalDateTime
+    --
+    + {static} from(CartItem, Book) : CartItemResponse
+  }
+
+  class OrderResponse {
+    + id : Long
+    + totalPrice : BigDecimal
+    + createdAt : LocalDateTime
+    + items : List<OrderItemDTO>
+    --
+    + {static} from(Order, Map<Long,Book>) : OrderResponse
+  }
+}
+
+' ============================================================
+' SECTION 3: STORAGE LAYER
+' ============================================================
+
+package "Storage Layer (com.toptal.bookshopv2.store)" #FFF3E0 {
+
+  class DataStore <<@Component>> {
+    - userIdGen : AtomicLong
+    - categoryIdGen : AtomicLong
+    - bookIdGen : AtomicLong
+    - cartItemIdGen : AtomicLong
+    - orderIdGen : AtomicLong
+    - orderItemIdGen : AtomicLong
+    --
+    - users : ConcurrentHashMap<Long, User>
+    - categories : ConcurrentHashMap<Long, Category>
+    - books : ConcurrentHashMap<Long, Book>
+    - cartItems : ConcurrentHashMap<Long, CartItem>
+    - orders : ConcurrentHashMap<Long, Order>
+    ==  User Operations ==
+    + saveUser(User) : User
+    + findUserByEmail(String) : Optional<User>
+    + existsUserByEmail(String) : boolean
+    == Category Operations ==
+    + saveCategory(Category) : Category
+    + findCategoryById(Long) : Optional<Category>
+    + findAllCategories() : List<Category>
+    + existsCategoryByName(String) : boolean
+    + existsCategoryByNameAndNotId(String, Long) : boolean
+    + deleteCategory(Long) : void
+    == Book Operations ==
+    + saveBook(Book) : Book
+    + findBookById(Long) : Optional<Book>
+    + findInStockBooks() : List<Book>
+    + findInStockBooksByCategoryIds(List<Long>) : List<Book>
+    + deleteBook(Long) : void
+    + existsBookByCategoryId(Long) : boolean
+    == Cart Operations ==
+    + saveCartItem(CartItem) : CartItem
+    + findCartItemsByUserId(Long) : List<CartItem>
+    + existsCartItemByUserIdAndBookId(Long, Long) : boolean
+    + findCartItemByUserIdAndBookId(Long, Long) : Optional<CartItem>
+    + deleteCartItem(Long) : void
+    + deleteCartItemsByUserId(Long) : void
+    + deleteExpiredCartItems(long) : void
+    == Order Operations ==
+    + saveOrder(Order) : Order
+    + findOrdersByUserId(Long) : List<Order>
+    + getBookMap() : Map<Long, Book>
+    --
+    Thread-safe: ConcurrentHashMap + AtomicLong
+  }
+}
+
+' ============================================================
+' SECTION 4: SERVICE LAYER
+' ============================================================
+
+package "Service Layer (com.toptal.bookshopv2.service)" #E3F2FD {
+
+  class AuthService <<@Service>> {
+    - dataStore : DataStore
+    - passwordEncoder : PasswordEncoder
+    - jwtService : JwtService
+    --
+    + register(AuthRequest) : AuthResponse
+    + login(AuthRequest) : AuthResponse
+    --
+    Note: register() always assigns Role.USER
+    Passwords stored as BCrypt hashes
+  }
+
+  class BookService <<@Service>> {
+    - dataStore : DataStore
+    --
+    + getBooks(categoryIds, sortBy, sortDir, page, size) : List<BookResponse>
+    + countBooks(categoryIds) : long
+    + getBookById(Long) : BookResponse
+    + createBook(BookRequest) : BookResponse
+    + updateBook(Long, BookUpdateRequest) : BookResponse
+    + deleteBook(Long) : void
+    --
+    Note: getBooks() only returns stock > 0
+    updateBook() does NOT modify stock
+    Supports sorting by: title, author, price, year, id
+  }
+
+  class CategoryService <<@Service>> {
+    - dataStore : DataStore
+    --
+    + getAllCategories() : List<CategoryResponse>
+    + getCategoryById(Long) : CategoryResponse
+    + createCategory(CategoryRequest) : CategoryResponse
+    + updateCategory(Long, CategoryRequest) : CategoryResponse
+    + deleteCategory(Long) : void
+    --
+    Note: deleteCategory() blocked if books exist
+  }
+
+  class CartService <<@Service>> {
+    - dataStore : DataStore
+    --
+    + getCart(String email) : List<CartItemResponse>
+    + addToCart(String email, Long bookId) : CartItemResponse
+    + removeFromCart(String email, Long bookId) : void
+    + **{synchronized}** checkout(String email) : OrderResponse
+    + getOrders(String email) : List<OrderResponse>
+    --
+    Note: addToCart() checks stock > 0 and one copy per user
+    checkout() is synchronized to prevent race conditions
+    checkout() decrements stock and creates Order
+  }
+
+  class CartExpiryScheduler <<@Service>> {
+    - dataStore : DataStore
+    - expiryMinutes : long {from config}
+    --
+    + {scheduled} cleanupExpiredItems() : void
+    --
+    @Scheduled(fixedRate = 600000) = every 10 min
+    Removes cart items older than 30 minutes
+    (configurable via app.cart.expiry-minutes)
+  }
+
+  AuthService --> DataStore
+  BookService --> DataStore
+  CategoryService --> DataStore
+  CartService --> DataStore
+  CartExpiryScheduler --> DataStore
+}
+
+' ============================================================
+' SECTION 5: SECURITY LAYER
+' ============================================================
+
+package "Security Layer (com.toptal.bookshopv2.security)" #FCE4EC {
+
+  class JwtService <<@Service>> {
+    - secretKey : String {from config}
+    - expiration : long {from config}
+    --
+    + generateToken(String email) : String
+    + extractUsername(String token) : String
+    + isTokenValid(String token) : boolean
+    --
+    Algorithm: HS512
+    Token expiry: 24 hours (configurable)
+  }
+
+  class CustomUserDetailsService <<@Service>> {
+    - dataStore : DataStore
+    --
+    + loadUserByUsername(String email) : UserDetails
+    --
+    implements UserDetailsService
+    Maps Role enum to GrantedAuthority
+  }
+
+  class JwtAuthenticationFilter <<OncePerRequestFilter>> {
+    - jwtService : JwtService
+    - userDetailsService : CustomUserDetailsService
+    --
+    # doFilterInternal(request, response, chain) : void
+    --
+    Extracts JWT from "Authorization: Bearer ..." header
+    Validates token and sets SecurityContext
+  }
+
+  JwtAuthenticationFilter --> JwtService
+  JwtAuthenticationFilter --> CustomUserDetailsService
+  CustomUserDetailsService --> DataStore
+}
+
+' ============================================================
+' SECTION 6: CONTROLLER LAYER
+' ============================================================
+
+package "Controller Layer (com.toptal.bookshopv2.controller)" #F3E5F5 {
+
+  class AuthController <<@RestController>> {
+    - authService : AuthService
+    --
+    POST /api/auth/register : AuthResponse {permitAll}
+    POST /api/auth/login : AuthResponse {permitAll}
+  }
+
+  class BookController <<@RestController>> {
+    - bookService : BookService
+    --
+    GET /api/books : Page<BookResponse> {permitAll}
+    GET /api/books/{id} : BookResponse {permitAll}
+    --
+    Query params: category, sortBy, sortDir, page, size
+  }
+
+  class CategoryController <<@RestController>> {
+    - categoryService : CategoryService
+    --
+    GET /api/categories : List<CategoryResponse> {permitAll}
+    GET /api/categories/{id} : CategoryResponse {permitAll}
+  }
+
+  class AdminController <<@RestController>> {
+    - bookService : BookService
+    - categoryService : CategoryService
+    --
+    POST /api/admin/categories : CategoryResponse {ADMIN only}
+    PUT /api/admin/categories/{id} : CategoryResponse {ADMIN only}
+    DELETE /api/admin/categories/{id} : void {ADMIN only}
+    POST /api/admin/books : BookResponse {ADMIN only}
+    PUT /api/admin/books/{id} : BookResponse {ADMIN only}
+    DELETE /api/admin/books/{id} : void {ADMIN only}
+  }
+
+  class CartController <<@RestController>> {
+    - cartService : CartService
+    --
+    GET /api/cart : List<CartItemResponse> {authenticated}
+    POST /api/cart/items/{bookId} : CartItemResponse {authenticated}
+    DELETE /api/cart/items/{bookId} : void {authenticated}
+    POST /api/cart/checkout : OrderResponse {authenticated}
+  }
+
+  class OrderController <<@RestController>> {
+    - cartService : CartService
+    --
+    GET /api/orders : List<OrderResponse> {authenticated}
+  }
+
+  AuthController --> AuthService
+  BookController --> BookService
+  CategoryController --> CategoryService
+  AdminController --> BookService
+  AdminController --> CategoryService
+  CartController --> CartService
+  OrderController --> CartService
+}
+
+' ============================================================
+' SECTION 7: CONFIG & EXCEPTION LAYER
+' ============================================================
+
+package "Config (com.toptal.bookshopv2.config)" #EFEBE9 {
+
+  class SecurityConfig <<@Configuration>> {
+    --
+    Defines filter chain:
+    - /api/auth/** : permitAll
+    - /api/books/**, /api/categories/** : permitAll (GET)
+    - /api/admin/** : hasRole(ADMIN)
+    - /api/cart/**, /api/orders/** : authenticated
+    Stateless session management
+    BCrypt PasswordEncoder bean
+  }
+
+  class DataInitializer <<@Component>> {
+    --
+    @PostConstruct:
+    Creates default admin user
+    email: admin@bookshop.com
+    password: admin123
+    role: ADMIN
+  }
+
+  class OpenApiConfig <<@Configuration>> {
+    --
+    Swagger/OpenAPI 3.0 configuration
+    JWT Bearer auth scheme
+  }
+}
+
+package "Exception Handling" #FFEBEE {
+
+  class GlobalExceptionHandler <<@RestControllerAdvice>> {
+    --
+    + handleNotFound(ResourceNotFoundException) : 404
+    + handleBadRequest(BadRequestException) : 400
+    + handleConflict(ConflictException) : 409
+    + handleValidation(MethodArgumentNotValid) : 400
+    + handleAccessDenied(AccessDenied) : 403
+    + handleAuth(AuthenticationException) : 401
+  }
+
+  class ResourceNotFoundException <<RuntimeException>> {
+    HTTP 404
+  }
+  class BadRequestException <<RuntimeException>> {
+    HTTP 400
+  }
+  class ConflictException <<RuntimeException>> {
+    HTTP 409
+  }
+}
+
+' ============================================================
+' SECTION 8: REQUEST FLOW
+' ============================================================
+
+note as N1
+  <b>Request Flow:</b>
+  Client → JwtAuthenticationFilter → Controller → Service → DataStore
+
+  <b>Key Business Rules:</b>
+  1. Registration always creates USER role (admin via DataStore only)
+  2. Book stock set at creation, immutable via update API
+  3. Sold-out books (stock=0) hidden from listings
+  4. One copy per book per user in cart
+  5. Checkout is synchronized to prevent race conditions
+  6. Cart items expire after 30 minutes (scheduler cleans every 10 min)
+  7. Unauthenticated users can browse books and categories
+  8. Only ADMIN can CRUD books and categories
+end note
+
+@enduml
