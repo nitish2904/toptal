@@ -16,6 +16,7 @@ A RESTful Online Bookshop API built with **Java 21** and **Spring Boot 3.4**. Th
 - [SecurityConfig – How It Works](#securityconfig--how-it-works)
 - [OpenApiConfig – How It Works](#openapiconfig--how-it-works)
 - [Swagger/OpenAPI – How It Works & Setup Guide](#swaggeropenapi--how-it-works--setup-guide)
+- [JWT Deep Dive – What, Why, How & Security Analysis](#jwt-deep-dive--what-why-how--security-analysis)
 - [Authentication Flow: JWT (v2)](#authentication-flow-jwt-v2)
 - [Authentication Flow: HTTP Basic (v3)](#authentication-flow-http-basic-v3)
 - [Authorization: How Roles Are Checked](#authorization-how-roles-are-checked)
@@ -355,6 +356,243 @@ new SecurityScheme().type(SecurityScheme.Type.APIKEY).in(SecurityScheme.In.HEADE
 | 3. SecurityConfig rule | ✅ Required (if using Spring Security) | Add `.permitAll()` for `/swagger-ui/**`, `/v3/api-docs/**` |
 | 4. Per-endpoint annotations | ⭐ Optional | Add `@Operation`, `@ApiResponses` on controller methods |
 | 5. Customize properties | ⭐ Optional | Set `springdoc.swagger-ui.path=/custom-path` in `application.properties` |
+
+---
+
+## JWT Deep Dive – What, Why, How & Security Analysis
+
+### What is JWT?
+
+**JWT (JSON Web Token)** is an open standard (RFC 7519) for securely transmitting information between parties as a compact, self-contained JSON object. It's digitally signed, so it can be **verified and trusted**.
+
+Think of it like a tamper-proof ID card:
+- The bouncer (server) issues you an ID card (JWT) at the door (login)
+- The card has your name and VIP status written on it (claims)
+- It has a holographic seal (signature) that only the bouncer can create
+- Inside the venue, security just checks the seal – no need to call the front desk
+
+### JWT Structure – The Three Parts
+
+A JWT looks like this:
+```
+eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyQHRlc3QuY29tIiwicm9sZSI6IlVTRVIiLCJpYXQiOjE3NDMzNjYwMDAsImV4cCI6MTc0MzQ1MjQwMH0.K7x9f2mN...
+|_____ HEADER _______|._________________ PAYLOAD __________________|.__ SIGNATURE __|
+```
+
+**Part 1: Header** (algorithm + type)
+```json
+{
+  "alg": "HS256",    // HMAC-SHA256 signing algorithm
+  "typ": "JWT"       // token type
+}
+```
+
+**Part 2: Payload** (claims – the actual data)
+```json
+{
+  "sub": "user@test.com",    // subject – WHO this token is for
+  "role": "USER",            // custom claim – user's role
+  "iat": 1743366000,         // issued at – WHEN it was created
+  "exp": 1743452400          // expiration – WHEN it expires
+}
+```
+
+**Part 3: Signature** (tamper protection)
+```
+HMAC-SHA256(
+  base64(header) + "." + base64(payload),
+  secretKey    // only our server knows this
+)
+```
+
+The header and payload are just **base64-encoded** (not encrypted!) – anyone can decode and read them. The **signature** is what provides security: it proves the token was created by our server and hasn't been tampered with.
+
+### Why JWT? The Problem It Solves
+
+**The traditional approach (sessions):**
+```
+Client                      Server
+  ├── POST /login ──────────→ Create session in memory/DB
+  │                            Store: sessionId → {user, role}
+  ←── Cookie: sessionId ────┤
+  │                            
+  ├── GET /api/cart ─────────→ Look up sessionId in memory/DB
+  │   Cookie: sessionId        Find user → allow
+  ←── {cart items} ─────────┤
+```
+**Problem:** Server must store sessions. With 3 servers behind a load balancer, if Server A created the session but Server B gets the next request → user is "not logged in". Requires sticky sessions or shared session store (Redis).
+
+**The JWT approach (stateless):**
+```
+Client                      Server
+  ├── POST /login ──────────→ Verify password
+  │                            Generate JWT (signed with secret)
+  ←── {token: "eyJ..."} ───┤  Nothing stored on server!
+  │                            
+  ├── GET /api/cart ─────────→ Verify JWT signature
+  │   Bearer: eyJ...           Extract user from token → allow
+  ←── {cart items} ─────────┤  No DB lookup for session!
+```
+**Solution:** Server stores NOTHING. The token itself carries all the info. Any server can verify it with the secret key.
+
+### How JWT Fits Our Bookshop (v2)
+
+In our project, JWT serves as a **stateless authentication mechanism**:
+
+1. User registers/logs in → server generates JWT containing email + role
+2. Client stores the JWT (typically in localStorage or memory)
+3. Every subsequent request includes `Authorization: Bearer <jwt>`
+4. Server verifies the signature and extracts the user's identity
+
+**Our code implementation spans 3 files:**
+
+| File | Purpose | Used When |
+|------|---------|-----------|
+| `JwtService.java` | Generate tokens, validate tokens, extract claims | Login (generate) + Every request (validate) |
+| `JwtAuthenticationFilter.java` | Intercept requests, call JwtService, set SecurityContext | Every request automatically |
+| `SecurityConfig.java` | Install the filter into the chain | Once at startup |
+
+### Code Used on EVERY Request (Security Check)
+
+Here's **exactly what code runs on every single authenticated request** in v2:
+
+**Step 1: `JwtAuthenticationFilter.doFilterInternal()`** – runs on EVERY request
+
+```java
+// JwtAuthenticationFilter.java – THIS RUNS ON EVERY REQUEST
+
+// 1. Get the Authorization header
+final String authHeader = request.getHeader("Authorization");
+
+// 2. No Bearer token? Skip → let other filters handle (might be a public endpoint)
+if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+    filterChain.doFilter(request, response);
+    return;
+}
+
+// 3. Extract the JWT string
+final String jwt = authHeader.substring(7);  // Remove "Bearer " prefix
+
+try {
+    // 4. Extract email from JWT (THIS ALSO VERIFIES THE SIGNATURE)
+    final String userEmail = jwtService.extractUsername(jwt);
+    
+    // 5. Not already authenticated in this request?
+    if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        
+        // 6. Load user details from our store
+        UserDetails userDetails = userDetailsService.loadUserByUsername(userEmail);
+        
+        // 7. Is token valid (email matches + not expired)?
+        if (jwtService.isTokenValid(jwt, userDetails)) {
+            
+            // 8. Set the user as authenticated for this request
+            UsernamePasswordAuthenticationToken authToken =
+                new UsernamePasswordAuthenticationToken(
+                    userDetails, null, userDetails.getAuthorities());
+            SecurityContextHolder.getContext().setAuthentication(authToken);
+        }
+    }
+} catch (Exception e) {
+    // Invalid/expired/tampered token → user stays unauthenticated
+}
+
+// 9. Continue to next filter (authorization rules check)
+filterChain.doFilter(request, response);
+```
+
+**Step 2: `JwtService.extractUsername()`** – the signature verification
+
+```java
+// JwtService.java – CALLED ON EVERY AUTHENTICATED REQUEST
+
+public String extractUsername(String token) {
+    return extractClaim(token, Claims::getSubject);  // Gets "sub" = email
+}
+
+private <T> T extractClaim(String token, Function<Claims, T> resolver) {
+    Claims claims = Jwts.parser()
+        .verifyWith(getSigningKey())      // ← Use our secret key
+        .build()
+        .parseSignedClaims(token)          // ← VERIFY SIGNATURE HERE!
+        .getPayload();                     // ← Only returns payload if signature is valid
+    return resolver.apply(claims);
+}
+
+// The signing key comes from application.properties:
+private SecretKey getSigningKey() {
+    return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+}
+```
+
+**What `parseSignedClaims()` does internally:**
+```
+1. Split token: header.payload.signature
+2. Decode header → get algorithm (HS256)
+3. Recompute: HMAC-SHA256(header + "." + payload, ourSecretKey)
+4. Compare computed signature with token's signature
+5. Match? → Return claims (email, role, expiry)
+   No match? → Throw SignatureException (token is forged/tampered)
+```
+
+**Step 3: `JwtService.isTokenValid()`** – additional checks
+
+```java
+// JwtService.java
+
+public boolean isTokenValid(String token, UserDetails userDetails) {
+    return extractUsername(token).equals(userDetails.getUsername())  // Email in token matches DB?
+           && !isTokenExpired(token);                                // Not expired?
+}
+
+private boolean isTokenExpired(String token) {
+    return extractClaim(token, Claims::getExpiration).before(new Date());
+}
+```
+
+### What Happens with Different Attack Scenarios
+
+| Attack | What happens | Code that prevents it |
+|--------|-------------|----------------------|
+| **Forged token** (attacker creates fake JWT) | `parseSignedClaims()` recomputes signature → doesn't match → `SignatureException` | `JwtService.extractClaim()` |
+| **Tampered payload** (attacker changes email/role in existing token) | Signature no longer matches the modified payload → `SignatureException` | `JwtService.extractClaim()` |
+| **Expired token** | `isTokenExpired()` checks `exp` claim against current time → returns false | `JwtService.isTokenValid()` |
+| **Token for deleted user** | `loadUserByUsername()` throws `UsernameNotFoundException` | `JwtAuthenticationFilter` catch block |
+| **No token sent** | Filter skips auth → user is unauthenticated → `authenticated()` rule returns 401 | `JwtAuthenticationFilter` early return |
+| **Wrong role** | Token is valid but `hasRole("ADMIN")` check fails → 403 | `SecurityConfig` authorization rules |
+| **Replay attack** (reusing a valid but old token) | Still works until `exp` – this is a known JWT limitation | Mitigated by short expiry time |
+
+### Pros and Cons of JWT
+
+| Pros ✅ | Cons ❌ |
+|---------|--------|
+| **Stateless** – server stores nothing, scales horizontally | **Can't revoke** – once issued, valid until expiry (no server-side logout) |
+| **Self-contained** – carries user info, no DB lookup for session | **Size** – larger than a simple session ID (~300+ bytes vs ~32 bytes) |
+| **Cross-service** – any service with the secret key can verify | **Payload is readable** – base64 encoded, not encrypted (don't put secrets in it) |
+| **No CSRF vulnerability** – stored in JS memory, not in cookies | **Clock skew** – if server clocks differ, expiry checks can fail |
+| **Performance** – signature verification is pure CPU (fast) | **Key rotation** – changing the secret invalidates ALL existing tokens |
+| **Mobile-friendly** – no cookies needed | **Replay attacks** – stolen tokens work until they expire |
+| **Standard** – RFC 7519, supported by all languages | **Refresh complexity** – need refresh token flow for long-lived sessions |
+
+### When to Use JWT vs Other Approaches
+
+| Approach | Best for | Our usage |
+|----------|---------|-----------|
+| **JWT Bearer (v2)** | APIs consumed by SPAs, mobile apps, microservices | When you need standard token-based auth |
+| **HTTP Basic (v3)** | Simple APIs, quick prototyping, server-to-server | When simplicity matters most |
+| **Session cookies** | Traditional web apps with server-rendered pages | Not used in this project |
+| **OAuth 2.0 + JWT** | Third-party login (Google, GitHub), enterprise SSO | Overkill for this project |
+
+### JWT vs HTTP Basic in Our Codebase – Security Comparison
+
+| Security Aspect | JWT (v2) | HTTP Basic (v3) |
+|----------------|----------|-----------------|
+| **Password exposure** | Sent once (at login) | Sent with EVERY request (base64, not encrypted) |
+| **Per-request cost** | Signature verification (CPU, ~0.1ms) | BCrypt hash (CPU, ~100ms) + DB lookup |
+| **Token theft impact** | Attacker has access until token expires | Attacker has the actual password |
+| **Logout** | Cannot truly logout (token still valid) | N/A (no session concept) |
+| **HTTPS required?** | Highly recommended | **Absolutely essential** (password in every request) |
+| **Code files involved** | `JwtService` + `JwtAuthenticationFilter` + `SecurityConfig` | Just `SecurityConfig` (uses Spring's built-in filter) |
 
 ---
 
