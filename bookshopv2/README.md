@@ -63,6 +63,277 @@ On startup, a default admin user is created:
 
 ---
 
+## UML Diagrams
+
+### Domain Model (Class Diagram)
+
+```mermaid
+classDiagram
+    class User {
+        -Long id
+        -String email
+        -String password
+        -Role role
+    }
+
+    class Role {
+        <<enumeration>>
+        USER
+        ADMIN
+    }
+
+    class Category {
+        -Long id
+        -String name
+    }
+
+    class Book {
+        -Long id
+        -String title
+        -String author
+        -Integer yearPublished
+        -BigDecimal price
+        -Integer stock
+        -Long categoryId
+    }
+
+    class CartItem {
+        -Long id
+        -Long userId
+        -Long bookId
+        -LocalDateTime addedAt
+    }
+
+    class Order {
+        -Long id
+        -Long userId
+        -BigDecimal totalPrice
+        -LocalDateTime createdAt
+        -List~OrderItem~ items
+    }
+
+    class OrderItem {
+        -Long bookId
+        -String bookTitle
+        -String bookAuthor
+        -BigDecimal priceAtPurchase
+    }
+
+    User --> Role : has
+    Book --> Category : belongs to
+    CartItem --> User : owned by
+    CartItem --> Book : references
+    Order --> User : placed by
+    Order *-- OrderItem : contains
+    OrderItem --> Book : references
+```
+
+### Architecture / Component Diagram
+
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        CLIENT[REST Client / Browser]
+    end
+
+    subgraph "Spring Boot Application"
+        subgraph "Controller Layer"
+            AC[AuthController]
+            BC[BookController]
+            CC[CategoryController]
+            ADC[AdminController]
+            CTC[CartController]
+            OC[OrderController]
+        end
+
+        subgraph "Security Layer"
+            SF[JwtAuthenticationFilter]
+            JS[JwtService]
+            SC[SecurityConfig]
+            CUDS[CustomUserDetailsService]
+        end
+
+        subgraph "Service Layer"
+            AS[AuthService]
+            BS[BookService]
+            CS[CategoryService]
+            CTS2[CartService]
+            CES[CartExpiryScheduler]
+        end
+
+        subgraph "Storage Layer"
+            DS[DataStore<br/>ConcurrentHashMap]
+        end
+    end
+
+    CLIENT -->|HTTP Requests| SF
+    SF -->|Validate JWT| JS
+    SF -->|Load User| CUDS
+    SF -->|Authorized| AC & BC & CC & ADC & CTC & OC
+
+    AC --> AS
+    BC --> BS
+    CC --> CS
+    ADC --> BS & CS
+    CTC --> CTS2
+    OC --> CTS2
+
+    AS --> DS
+    BS --> DS
+    CS --> DS
+    CTS2 --> DS
+    CES -->|Every 10 min| DS
+    CUDS --> DS
+```
+
+### Checkout Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant CC as CartController
+    participant CS as CartService
+    participant DS as DataStore
+
+    User->>CC: POST /api/cart/checkout
+    CC->>CS: checkout(userId)
+    
+    Note over CS: synchronized block begins
+
+    CS->>DS: findCartItemsByUserId(userId)
+    DS-->>CS: List<CartItem>
+
+    alt Cart is empty
+        CS-->>CC: 400 Bad Request "Cart is empty"
+        CC-->>User: 400 Error Response
+    end
+
+    loop For each CartItem
+        CS->>DS: findBookById(bookId)
+        DS-->>CS: Book
+
+        alt Book stock <= 0
+            CS-->>CC: 400 "Book no longer in stock"
+            CC-->>User: 400 Error Response
+        end
+
+        CS->>CS: Decrement book.stock
+        CS->>DS: saveBook(book)
+    end
+
+    CS->>DS: saveOrder(order)
+    CS->>DS: deleteCartItems(userId)
+
+    Note over CS: synchronized block ends
+
+    DS-->>CS: Order
+    CS-->>CC: OrderResponse
+    CC-->>User: 200 OK + Order Details
+```
+
+### Add to Cart Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant CC as CartController
+    participant CS as CartService
+    participant DS as DataStore
+
+    User->>CC: POST /api/cart/items/{bookId}
+    CC->>CS: addToCart(userId, bookId)
+
+    CS->>DS: findBookById(bookId)
+    
+    alt Book not found
+        CS-->>CC: 404 "Book not found"
+        CC-->>User: 404 Error
+    end
+
+    alt Book stock <= 0
+        CS-->>CC: 400 "Book is out of stock"
+        CC-->>User: 400 Error
+    end
+
+    CS->>DS: findCartItemsByUserId(userId)
+    
+    alt Book already in cart
+        CS-->>CC: 409 "Book is already in your cart"
+        CC-->>User: 409 Conflict
+    end
+
+    CS->>DS: saveCartItem(cartItem)
+    DS-->>CS: CartItem
+    CS-->>CC: CartItemResponse
+    CC-->>User: 201 Created + CartItem
+```
+
+### Authentication Flow
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant AC as AuthController
+    participant AS as AuthService
+    participant JS as JwtService
+    participant DS as DataStore
+
+    Note over User,DS: Registration Flow
+    User->>AC: POST /api/auth/register {email, password}
+    AC->>AS: register(request)
+    AS->>DS: findUserByEmail(email)
+    
+    alt Email already exists
+        AS-->>AC: 409 "Email already registered"
+        AC-->>User: 409 Conflict
+    end
+
+    AS->>AS: BCrypt.encode(password)
+    AS->>DS: saveUser(user with Role.USER)
+    AS->>JS: generateToken(email)
+    JS-->>AS: JWT Token
+    AS-->>AC: AuthResponse
+    AC-->>User: 200 {token, email, role: "USER"}
+
+    Note over User,DS: Login Flow
+    User->>AC: POST /api/auth/login {email, password}
+    AC->>AS: login(request)
+    AS->>DS: findUserByEmail(email)
+    AS->>AS: BCrypt.matches(password, hash)
+    
+    alt Invalid credentials
+        AS-->>AC: 401 Unauthorized
+        AC-->>User: 401 Error
+    end
+
+    AS->>JS: generateToken(email)
+    JS-->>AS: JWT Token
+    AS-->>AC: AuthResponse
+    AC-->>User: 200 {token, email, role}
+```
+
+### Cart Expiry Flow
+
+```mermaid
+sequenceDiagram
+    participant Scheduler as CartExpiryScheduler<br/>@Scheduled(10 min)
+    participant DS as DataStore
+
+    loop Every 10 minutes
+        Scheduler->>DS: findAllCartItems()
+        DS-->>Scheduler: List<CartItem>
+
+        loop For each CartItem
+            alt addedAt + 30min < now
+                Scheduler->>DS: deleteCartItem(id)
+                Note over Scheduler: Expired item removed,<br/>book available for others
+            end
+        end
+    end
+```
+
+---
+
 ## Functional Requirements & Test Scenarios
 
 ### 1. User Registration & Authentication
