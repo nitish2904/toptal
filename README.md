@@ -15,6 +15,7 @@ A RESTful Online Bookshop API built with **Java 21** and **Spring Boot 3.4**. Th
 - [Architecture Overview](#architecture-overview)
 - [SecurityConfig – How It Works](#securityconfig--how-it-works)
 - [OpenApiConfig – How It Works](#openapiconfig--how-it-works)
+- [Swagger/OpenAPI – How It Works & Setup Guide](#swaggeropenapi--how-it-works--setup-guide)
 - [Authentication Flow: JWT (v2)](#authentication-flow-jwt-v2)
 - [Authentication Flow: HTTP Basic (v3)](#authentication-flow-http-basic-v3)
 - [Authorization: How Roles Are Checked](#authorization-how-roles-are-checked)
@@ -134,6 +135,226 @@ The `springdoc-openapi` library (from `pom.xml`) does:
 - **API title/version/description** shown at the top of Swagger UI
 - **Security scheme** (Basic or Bearer JWT) → adds the "Authorize" button
 - **Without OpenApiConfig:** Swagger still works but has no auth button and no title
+
+---
+
+## Swagger/OpenAPI – How It Works & Setup Guide
+
+### What is Swagger?
+
+**Swagger** (now called **OpenAPI**) is an auto-generated, interactive documentation page for your REST API. It:
+- Lists all endpoints with their HTTP methods, URLs, request/response formats
+- Lets you **try out** API calls directly from the browser (no curl/Postman needed)
+- Auto-generates from your Java code – no manual documentation writing
+
+### What you see
+
+When you visit `http://localhost:8080/swagger-ui.html`:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Bookshop API v3                              [Authorize 🔒] │
+│  Online Bookshop REST API – HTTP Basic Auth                  │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ▸ auth-controller                                           │
+│    POST /api/auth/register    Register a new user            │
+│                                                              │
+│  ▸ book-controller                                           │
+│    GET  /api/books            List all books (paginated)     │
+│    GET  /api/books/{id}       Get book by ID                 │
+│                                                              │
+│  ▸ admin-controller                                          │
+│    POST /api/admin/books      Create book        🔒          │
+│    PUT  /api/admin/books/{id} Update book        🔒          │
+│    ...                                                       │
+│                                                              │
+│  ▸ cart-controller                                           │
+│    GET  /api/cart             View cart           🔒          │
+│    POST /api/cart/items/{id}  Add to cart         🔒          │
+│    ...                                                       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### How to Set Up Swagger in Any Spring Boot App
+
+There are **3 levels** of setup, from minimal to full:
+
+#### Level 1: Just the Dependency (Minimal – Works Immediately)
+
+Add to `pom.xml`:
+```xml
+<dependency>
+    <groupId>org.springdoc</groupId>
+    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+    <version>2.8.6</version>
+</dependency>
+```
+
+**That's it.** No config class, no annotations. Swagger UI appears at `/swagger-ui.html` and auto-discovers all your `@RestController` endpoints.
+
+What springdoc does automatically:
+- Scans all `@RestController` classes
+- Reads `@GetMapping`, `@PostMapping`, `@RequestMapping`, etc. → extracts URL paths + HTTP methods
+- Reads `@RequestBody` DTO classes → generates request schemas
+- Reads return types → generates response schemas
+- Reads `@Valid` + Jakarta validation annotations (`@NotBlank`, `@Min`, etc.) → shows constraints
+- Serves raw JSON spec at `GET /v3/api-docs`
+- Serves Swagger UI at `GET /swagger-ui.html`
+
+#### Level 2: Add OpenApiConfig (Recommended – Adds Auth & Metadata)
+
+Create `config/OpenApiConfig.java`:
+```java
+@Configuration
+public class OpenApiConfig {
+    @Bean
+    public OpenAPI customOpenAPI() {
+        return new OpenAPI()
+                // API metadata (title, version, description)
+                .info(new Info()
+                    .title("Bookshop API v3")
+                    .version("3.0")
+                    .description("Online Bookshop REST API"))
+                // Security: what auth scheme the API uses
+                .addSecurityItem(new SecurityRequirement().addList("basicAuth"))
+                .schemaRequirement("basicAuth",
+                    new SecurityScheme()
+                        .type(SecurityScheme.Type.HTTP)
+                        .scheme("basic"));  // or "bearer" for JWT
+    }
+}
+```
+
+This adds:
+- **Title/version/description** at the top of Swagger UI
+- **"Authorize" button** → users click it to enter credentials
+- **🔒 lock icon** on endpoints that require auth
+
+#### Level 3: Per-Endpoint Annotations (Advanced – Fine-Grained Docs)
+
+Add annotations on individual controller methods for detailed docs:
+```java
+@Operation(summary = "Create a book", description = "Admin only. Creates a new book in the catalog.")
+@ApiResponses({
+    @ApiResponse(responseCode = "201", description = "Book created"),
+    @ApiResponse(responseCode = "400", description = "Validation error"),
+    @ApiResponse(responseCode = "403", description = "Not an admin")
+})
+@PostMapping("/api/admin/books")
+public ResponseEntity<BookResponse> createBook(@Valid @RequestBody BookRequest request) { ... }
+```
+
+> **Our project uses Level 2** – dependency + OpenApiConfig. We don't use Level 3 annotations because the auto-generated docs are sufficient.
+
+### With Spring Security: The Critical SecurityConfig Rule
+
+If you use Spring Security, you **must** allow public access to Swagger URLs, otherwise Swagger UI itself will require authentication:
+
+```java
+// SecurityConfig.java – THIS IS REQUIRED:
+.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+```
+
+Without this rule, navigating to `/swagger-ui.html` returns 401/403.
+
+### How Swagger Works Internally
+
+```
+┌─ At Startup ─────────────────────────────────────────────────┐
+│                                                               │
+│  springdoc-openapi-starter-webmvc-ui (from pom.xml)          │
+│    ↓                                                          │
+│  Auto-configures itself via Spring Boot auto-configuration    │
+│    ↓                                                          │
+│  Scans all @RestController classes                            │
+│    ├── @GetMapping("/api/books") → GET /api/books             │
+│    ├── @PostMapping("/api/admin/books") → POST /api/admin/... │
+│    ├── @RequestBody BookRequest → reads fields, types, valid. │
+│    └── return BookResponse → reads response schema            │
+│    ↓                                                          │
+│  Finds @Bean OpenAPI (from OpenApiConfig)                     │
+│    ├── Merges title, version, description                     │
+│    └── Merges security scheme (Basic/Bearer)                  │
+│    ↓                                                          │
+│  Registers endpoints:                                         │
+│    GET /v3/api-docs      → serves OpenAPI JSON spec           │
+│    GET /swagger-ui.html  → serves Swagger UI (static HTML/JS)│
+│    GET /swagger-ui/**    → serves Swagger UI assets           │
+│                                                               │
+└───────────────────────────────────────────────────────────────┘
+
+┌─ At Runtime (when you visit /swagger-ui.html) ───────────────┐
+│                                                               │
+│  Browser loads /swagger-ui.html                               │
+│    ↓                                                          │
+│  Swagger UI JavaScript fetches /v3/api-docs                   │
+│    ↓                                                          │
+│  Gets JSON like:                                              │
+│  {                                                            │
+│    "openapi": "3.0",                                          │
+│    "info": {"title": "Bookshop API v3", ...},                 │
+│    "paths": {                                                 │
+│      "/api/books": {                                          │
+│        "get": {                                               │
+│          "parameters": [{"name":"page"}, {"name":"size"}],    │
+│          "responses": {"200": {"schema": "PageBookResponse"}} │
+│        }                                                      │
+│      },                                                       │
+│      "/api/admin/books": {                                    │
+│        "post": {                                              │
+│          "requestBody": {"schema": "BookRequest"},            │
+│          "security": [{"basicAuth": []}]                      │
+│        }                                                      │
+│      }                                                        │
+│    },                                                         │
+│    "components": {                                            │
+│      "schemas": {                                             │
+│        "BookRequest": {                                       │
+│          "title": {"type":"string", "required": true},        │
+│          "price": {"type":"number", "minimum": 0.01}          │
+│        }                                                      │
+│      },                                                       │
+│      "securitySchemes": {                                     │
+│        "basicAuth": {"type":"http", "scheme":"basic"}         │
+│      }                                                        │
+│    }                                                          │
+│  }                                                            │
+│    ↓                                                          │
+│  Renders interactive UI with "Try it out" buttons             │
+│                                                               │
+└───────────────────────────────────────────────────────────────┘
+```
+
+### Security Schemes for Different Auth Types
+
+**HTTP Basic (v3):**
+```java
+new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("basic")
+// Swagger UI shows: Username [____] Password [____]
+```
+
+**JWT Bearer (v2):**
+```java
+new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT")
+// Swagger UI shows: Value [________________] (paste JWT token)
+```
+
+**API Key:**
+```java
+new SecurityScheme().type(SecurityScheme.Type.APIKEY).in(SecurityScheme.In.HEADER).name("X-API-Key")
+// Swagger UI shows: API Key [________________]
+```
+
+### Checklist: Setting Up Swagger in a New Spring Boot Project
+
+| Step | Required? | What to do |
+|------|-----------|------------|
+| 1. Add dependency | ✅ Required | Add `springdoc-openapi-starter-webmvc-ui` to `pom.xml` |
+| 2. OpenApiConfig | 📋 Recommended | Create `@Configuration` class with `@Bean OpenAPI` for title + auth |
+| 3. SecurityConfig rule | ✅ Required (if using Spring Security) | Add `.permitAll()` for `/swagger-ui/**`, `/v3/api-docs/**` |
+| 4. Per-endpoint annotations | ⭐ Optional | Add `@Operation`, `@ApiResponses` on controller methods |
+| 5. Customize properties | ⭐ Optional | Set `springdoc.swagger-ui.path=/custom-path` in `application.properties` |
 
 ---
 
