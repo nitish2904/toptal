@@ -2,6 +2,7 @@ package com.toptal.bookshopv2.dto;
 import jakarta.validation.constraints.*;
 import lombok.*;
 import java.math.BigDecimal;
+/** Request DTO for updating book metadata (admin). Does not include stock. */
 @Data @NoArgsConstructor @AllArgsConstructor
 public class BookUpdateRequest {
     @NotBlank(message = "Title is required") private String title;

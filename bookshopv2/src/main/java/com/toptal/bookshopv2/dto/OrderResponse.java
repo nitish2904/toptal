@@ -4,10 +4,12 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
+/** Response DTO for an order with its line items, total price, and creation timestamp. */
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class OrderResponse {
     private Long id; private BigDecimal totalPrice; private LocalDateTime createdAt;
     private List<OrderItemResponse> items;
+    /** Nested DTO representing a single line item within an order. */
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class OrderItemResponse {
         private Long bookId; private String bookTitle; private String bookAuthor; private BigDecimal priceAtPurchase;

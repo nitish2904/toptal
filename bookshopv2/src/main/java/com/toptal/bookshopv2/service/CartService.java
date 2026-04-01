@@ -13,6 +13,24 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.*;
 
+/**
+ * Service managing shopping cart operations and order checkout.
+ *
+ * <p>Each cart item represents a single book (quantity always 1). The checkout
+ * method is {@code synchronized} to prevent race conditions when decrementing stock.</p>
+ *
+ * <h3>Business rules:</h3>
+ * <ul>
+ *   <li>Only in-stock books can be added to cart</li>
+ *   <li>Duplicate books in the same cart are rejected</li>
+ *   <li>Checkout atomically decrements stock and creates an order</li>
+ *   <li>Cart is cleared after successful checkout</li>
+ * </ul>
+ *
+ * @author Nitish
+ * @version 2.0
+ * @see CartExpiryScheduler
+ */
 @Service
 @RequiredArgsConstructor
 public class CartService {
@@ -21,11 +39,13 @@ public class CartService {
     private final CartItemRepository cartItemRepository;
     private final OrderRepository orderRepository;
 
+    /** Returns all items in the authenticated user's cart. */
     public List<CartItemResponse> getCart(String email) {
         User user = getUser(email);
         return cartItemRepository.findByUserId(user.getId()).stream()
                 .map(ci -> CartItemResponse.from(ci, bookRepository.findById(ci.getBookId()).orElse(null))).toList();
     }
+    /** Adds a book to the user's cart. Rejects out-of-stock or duplicate books. */
     public CartItemResponse addToCart(String email, Long bookId) {
         User user = getUser(email);
         Book book = bookRepository.findById(bookId)
@@ -36,12 +56,14 @@ public class CartService {
         CartItem ci = cartItemRepository.save(CartItem.builder().userId(user.getId()).bookId(bookId).build());
         return CartItemResponse.from(ci, book);
     }
+    /** Removes a book from the user's cart. */
     public void removeFromCart(String email, Long bookId) {
         User user = getUser(email);
         CartItem ci = cartItemRepository.findByUserIdAndBookId(user.getId(), bookId)
                 .orElseThrow(() -> new ResourceNotFoundException("Book not found in your cart"));
         cartItemRepository.deleteById(ci.getId());
     }
+    /** Atomically converts the user's cart into an order, decrementing stock for each book. */
     public synchronized OrderResponse checkout(String email) {
         User user = getUser(email);
         List<CartItem> items = cartItemRepository.findByUserId(user.getId());
@@ -62,11 +84,13 @@ public class CartService {
         cartItemRepository.deleteByUserId(user.getId());
         return OrderResponse.from(order, bookRepository.getBookMap());
     }
+    /** Returns the authenticated user's order history (newest first). */
     public List<OrderResponse> getOrders(String email) {
         User user = getUser(email);
         Map<Long, Book> bookMap = bookRepository.getBookMap();
         return orderRepository.findByUserId(user.getId()).stream().map(o -> OrderResponse.from(o, bookMap)).toList();
     }
+    /** Resolves a User entity from their email address. */
     private User getUser(String email) {
         return userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }

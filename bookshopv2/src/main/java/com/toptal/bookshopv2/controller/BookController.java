@@ -7,6 +7,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.*;
 
+/**
+ * REST controller for public book catalog browsing.
+ *
+ * <p>Supports paginated listing with category filtering and multi-field sorting,
+ * plus single-book lookup. No authentication required.</p>
+ *
+ * @author Nitish
+ * @version 2.0
+ */
 @RestController @RequestMapping("/api/books") @RequiredArgsConstructor
 public class BookController {
     private final BookService bookService;

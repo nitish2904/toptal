@@ -9,6 +9,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * REST controller for admin-only operations on categories and books.
+ *
+ * <p>All endpoints require ADMIN role. Provides CRUD for categories and books.</p>
+ *
+ * @author Nitish
+ * @version 2.0
+ */
 @RestController @RequestMapping("/api/admin") @RequiredArgsConstructor
 public class AdminController {
     private final CategoryService categoryService;

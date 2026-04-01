@@ -3,6 +3,7 @@ import com.toptal.bookshopv2.model.Book;
 import com.toptal.bookshopv2.model.Category;
 import lombok.*;
 import java.math.BigDecimal;
+/** Response DTO representing a book with its category. Includes a factory method from entity. */
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class BookResponse {
     private Long id; private String title; private String author; private Integer yearPublished;

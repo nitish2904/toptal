@@ -9,6 +9,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * REST controller for user authentication (public endpoints).
+ *
+ * <p>Provides registration and login endpoints that return JWT tokens.</p>
+ *
+ * @author Nitish
+ * @version 2.0
+ */
 @RestController @RequestMapping("/api/auth") @RequiredArgsConstructor
 public class AuthController {
     private final AuthService authService;

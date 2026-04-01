@@ -4,6 +4,7 @@ import com.toptal.bookshopv2.model.CartItem;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+/** Response DTO for a cart item with denormalized book details and timestamp. */
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class CartItemResponse {
     private Long id; private Long bookId; private String bookTitle; private String bookAuthor;

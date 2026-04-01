@@ -11,6 +11,14 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
+/**
+ * REST controller for shopping cart operations (authenticated users).
+ *
+ * <p>Allows users to view, add to, remove from their cart, and checkout.</p>
+ *
+ * @author Nitish
+ * @version 2.0
+ */
 @RestController @RequestMapping("/api/cart") @RequiredArgsConstructor
 public class CartController {
     private final CartService cartService;

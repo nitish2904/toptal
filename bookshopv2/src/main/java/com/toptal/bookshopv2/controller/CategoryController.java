@@ -7,6 +7,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
+/**
+ * REST controller for public category browsing.
+ *
+ * <p>Provides read-only access to the category catalog. No authentication required.</p>
+ *
+ * @author Nitish
+ * @version 2.0
+ */
 @RestController @RequestMapping("/api/categories") @RequiredArgsConstructor
 public class CategoryController {
     private final CategoryService categoryService;

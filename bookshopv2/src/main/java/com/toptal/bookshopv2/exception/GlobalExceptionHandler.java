@@ -13,6 +13,10 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Centralized exception handler that translates domain and framework exceptions
+ * into structured JSON error responses with appropriate HTTP status codes.
+ */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {

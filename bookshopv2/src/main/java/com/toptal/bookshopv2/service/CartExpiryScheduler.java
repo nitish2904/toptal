@@ -7,6 +7,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+/**
+ * Scheduled task that removes expired cart items to prevent indefinite stock reservation.
+ *
+ * <p>Runs every 10 minutes (600,000 ms). Removes cart items older than
+ * {@code app.cart.expiry-minutes} (configurable, default 30 minutes).</p>
+ *
+ * @author Nitish
+ * @version 2.0
+ * @see CartItemRepository#deleteExpiredItems
+ */
 @Component @RequiredArgsConstructor @Slf4j
 public class CartExpiryScheduler {
     private final CartItemRepository cartItemRepository;

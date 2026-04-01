@@ -1,6 +1,7 @@
 package com.toptal.bookshopv2.dto;
 import jakarta.validation.constraints.*;
 import lombok.*;
+/** Request DTO for login and registration (email + password). */
 @Data @NoArgsConstructor @AllArgsConstructor
 public class AuthRequest {
     @NotBlank(message = "Email is required") @Email(message = "Invalid email format") private String email;
