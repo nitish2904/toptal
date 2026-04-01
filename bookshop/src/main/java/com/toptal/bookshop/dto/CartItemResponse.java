@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+/** Response DTO for a cart item with denormalized book details and timestamp. */
 
 @Data
 @AllArgsConstructor

@@ -9,6 +9,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+/** REST controller exposing order checkout and history endpoints for authenticated users. */
 
 @RestController
 @RequestMapping("/api/orders")

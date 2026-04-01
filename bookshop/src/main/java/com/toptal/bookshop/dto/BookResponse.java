@@ -4,6 +4,7 @@ import com.toptal.bookshop.entity.Book;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import java.math.BigDecimal;
+/** Response DTO for a book including full category details. */
 
 @Data
 @AllArgsConstructor

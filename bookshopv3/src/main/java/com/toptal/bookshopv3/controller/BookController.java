@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.*;
+/** REST controller exposing public book browsing and admin book management endpoints. */
 
 @RestController @RequestMapping("/api/books") @RequiredArgsConstructor
 public class BookController {

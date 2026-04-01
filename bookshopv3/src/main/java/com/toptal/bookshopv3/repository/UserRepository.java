@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+/** Spring Data JPA repository for {@link com.toptal.bookshopv3.entity.User} entities. */
 
 @Repository
 public class UserRepository {

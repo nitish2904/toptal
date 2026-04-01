@@ -9,6 +9,7 @@ import com.toptal.bookshopv3.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.util.List;
+/** Service for managing book categories (CRUD). */
 
 @Service
 @RequiredArgsConstructor

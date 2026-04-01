@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+/** REST controller exposing user registration and login endpoints. */
 
 @RestController @RequestMapping("/api/auth") @RequiredArgsConstructor
 public class AuthController {

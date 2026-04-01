@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+/** REST controller exposing public book browsing and admin book management endpoints. */
 
 @RestController
 @RequestMapping("/api/books")

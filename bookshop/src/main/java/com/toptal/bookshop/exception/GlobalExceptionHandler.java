@@ -18,6 +18,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
+/**
+ * Centralized exception handler that translates domain and framework exceptions
+ * into structured JSON error responses with appropriate HTTP status codes.
+ */
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {

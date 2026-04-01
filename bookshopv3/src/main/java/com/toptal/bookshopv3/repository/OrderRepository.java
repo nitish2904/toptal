@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+/** Spring Data JPA repository for {@link com.toptal.bookshopv3.entity.Order} entities. */
 
 @Repository
 public class OrderRepository {

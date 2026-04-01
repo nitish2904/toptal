@@ -7,6 +7,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.*;
 import org.springframework.stereotype.Service;
 import java.util.List;
+/** Spring Security {@link org.springframework.security.core.userdetails.UserDetailsService} that loads users by email. */
 
 @Service
 @RequiredArgsConstructor

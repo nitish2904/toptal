@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "cart_items", uniqueConstraints = {
     @UniqueConstraint(columnNames = {"user_id", "book_id"})
+/** JPA entity representing a single item in a user's shopping cart. */
 })
 @Getter
 @Setter

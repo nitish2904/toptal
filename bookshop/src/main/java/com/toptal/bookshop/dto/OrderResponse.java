@@ -7,6 +7,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+/** Response DTO for an order with its line items, total price, and creation timestamp. */
 
 @Data
 @AllArgsConstructor

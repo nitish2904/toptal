@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+/** Spring Data JPA repository for {@link com.toptal.bookshop.entity.Order} entities. */
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {

@@ -2,6 +2,7 @@ package com.toptal.bookshopv3.dto;
 import com.toptal.bookshopv3.model.Book;
 import com.toptal.bookshopv3.model.Category;
 import lombok.*;
+/** Response DTO for a book including full category details. */
 import java.math.BigDecimal;
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class BookResponse {

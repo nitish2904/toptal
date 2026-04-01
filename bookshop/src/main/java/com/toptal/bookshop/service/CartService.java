@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+/** Service for managing the user's shopping cart (add, view, remove, clear). */
 
 @Service
 @RequiredArgsConstructor

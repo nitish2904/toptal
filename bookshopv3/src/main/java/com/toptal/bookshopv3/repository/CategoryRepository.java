@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+/** Spring Data JPA repository for {@link com.toptal.bookshopv3.entity.Category} entities. */
 
 @Repository
 public class CategoryRepository {

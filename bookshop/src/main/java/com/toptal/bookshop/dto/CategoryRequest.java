@@ -3,6 +3,7 @@ package com.toptal.bookshop.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+/** Request DTO for creating or updating a category. */
 
 @Data
 public class CategoryRequest {

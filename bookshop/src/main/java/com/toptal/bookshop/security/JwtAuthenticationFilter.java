@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+/** Servlet filter that validates the JWT Bearer token on every incoming request. */
 
 @Component
 @RequiredArgsConstructor

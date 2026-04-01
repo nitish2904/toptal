@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+/** REST controller exposing category listing and admin category management endpoints. */
 
 @RestController
 @RequestMapping("/api/categories")

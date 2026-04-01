@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+/** Spring Data JPA repository for {@link com.toptal.bookshopv3.entity.CartItem} with bulk-expiry support. */
 
 @Repository
 public class CartItemRepository {

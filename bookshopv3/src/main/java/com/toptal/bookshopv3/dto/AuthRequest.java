@@ -1,5 +1,6 @@
 package com.toptal.bookshopv3.dto;
 import jakarta.validation.constraints.*;
+/** Request DTO for user registration and login carrying email and password. */
 import lombok.*;
 @Data @NoArgsConstructor @AllArgsConstructor
 public class AuthRequest {

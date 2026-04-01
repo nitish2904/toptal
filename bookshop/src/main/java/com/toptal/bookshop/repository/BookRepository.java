@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+/** Spring Data JPA repository for {@link com.toptal.bookshop.entity.Book} with custom in-stock and locking queries. */
 
 @Repository
 public interface BookRepository extends JpaRepository<Book, Long> {

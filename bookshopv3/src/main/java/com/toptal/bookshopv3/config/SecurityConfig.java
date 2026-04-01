@@ -16,6 +16,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+/** Spring Security configuration: JWT filter chain, role-based access rules, and beans. */
 
 @Configuration @EnableWebSecurity @RequiredArgsConstructor
 public class SecurityConfig {

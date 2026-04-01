@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+/** JPA entity representing a book in the catalogue with stock management. */
 
 @Entity
 @Table(name = "books")

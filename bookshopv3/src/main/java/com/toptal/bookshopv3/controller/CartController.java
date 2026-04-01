@@ -10,6 +10,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+/** REST controller exposing cart operations for authenticated users. */
 
 @RestController @RequestMapping("/api/cart") @RequiredArgsConstructor
 public class CartController {

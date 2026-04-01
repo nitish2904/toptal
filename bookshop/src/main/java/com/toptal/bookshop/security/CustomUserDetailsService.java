@@ -10,6 +10,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+/** Spring Security {@link org.springframework.security.core.userdetails.UserDetailsService} that loads users by email. */
 
 @Service
 @RequiredArgsConstructor

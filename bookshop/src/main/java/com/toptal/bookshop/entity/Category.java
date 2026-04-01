@@ -3,6 +3,7 @@ package com.toptal.bookshop.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
+/** JPA entity representing a book category. */
 
 @Entity
 @Table(name = "categories")

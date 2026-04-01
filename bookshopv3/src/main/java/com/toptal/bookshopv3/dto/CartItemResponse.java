@@ -3,6 +3,7 @@ import com.toptal.bookshopv3.model.Book;
 import com.toptal.bookshopv3.model.CartItem;
 import lombok.*;
 import java.math.BigDecimal;
+/** Response DTO for a cart item with denormalized book details and timestamp. */
 import java.time.LocalDateTime;
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class CartItemResponse {

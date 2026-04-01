@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.*;
+/** Service for managing the user's shopping cart (add, view, remove, clear). */
 
 @Service
 @RequiredArgsConstructor

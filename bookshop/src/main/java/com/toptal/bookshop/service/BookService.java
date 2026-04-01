@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+/** Service for browsing, creating, updating, and deleting books (admin). */
 
 @Service
 @RequiredArgsConstructor

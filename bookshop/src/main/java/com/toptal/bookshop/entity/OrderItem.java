@@ -3,6 +3,7 @@ package com.toptal.bookshop.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
+/** JPA entity representing a single line item within a completed order, with the price snapshot. */
 
 @Entity
 @Table(name = "order_items")

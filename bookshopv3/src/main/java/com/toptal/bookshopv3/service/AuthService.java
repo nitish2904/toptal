@@ -9,6 +9,7 @@ import com.toptal.bookshopv3.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+/** Service handling user registration and login, returning a JWT token on success. */
 
 @Service
 @RequiredArgsConstructor

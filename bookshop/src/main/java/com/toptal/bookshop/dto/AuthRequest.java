@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+/** Request DTO for user registration and login carrying email and password. */
 
 @Data
 public class AuthRequest {

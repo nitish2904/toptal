@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.util.Comparator;
 import java.util.List;
+/** Service for browsing, creating, updating, and deleting books (admin). */
 
 @Service
 @RequiredArgsConstructor

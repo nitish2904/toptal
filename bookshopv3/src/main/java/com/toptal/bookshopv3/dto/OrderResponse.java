@@ -3,6 +3,7 @@ import com.toptal.bookshopv3.model.*;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+/** Response DTO for an order with its line items, total price, and creation timestamp. */
 import java.util.*;
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class OrderResponse {

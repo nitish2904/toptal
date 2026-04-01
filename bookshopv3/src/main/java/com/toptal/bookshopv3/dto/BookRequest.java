@@ -1,6 +1,7 @@
 package com.toptal.bookshopv3.dto;
 import jakarta.validation.constraints.*;
 import lombok.*;
+/** Request DTO for creating a new book including initial stock. */
 import java.math.BigDecimal;
 @Data @NoArgsConstructor @AllArgsConstructor
 public class BookRequest {

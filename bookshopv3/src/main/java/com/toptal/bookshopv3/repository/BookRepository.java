@@ -7,6 +7,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+/** Spring Data JPA repository for {@link com.toptal.bookshopv3.entity.Book} with custom in-stock and locking queries. */
 
 @Repository
 public class BookRepository {

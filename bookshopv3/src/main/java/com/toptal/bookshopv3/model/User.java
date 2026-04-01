@@ -1,5 +1,6 @@
 package com.toptal.bookshopv3.model;
 import lombok.*;
+/** JPA entity representing a registered user with email, password, and role. */
 import java.time.LocalDateTime;
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class User {

@@ -3,6 +3,7 @@ package com.toptal.bookshop.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
+/** JPA entity representing a registered user with email, password, and role. */
 
 @Entity
 @Table(name = "users")

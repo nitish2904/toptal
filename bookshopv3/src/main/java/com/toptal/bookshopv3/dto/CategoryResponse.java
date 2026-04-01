@@ -1,5 +1,6 @@
 package com.toptal.bookshopv3.dto;
 import com.toptal.bookshopv3.model.Category;
+/** Response DTO representing a category (id + name). */
 import lombok.*;
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class CategoryResponse {
